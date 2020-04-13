@@ -17,11 +17,11 @@ function initApp() {
 	$('#abacus-content').append('<canvas id="abacus-canvas"></canvas>')
 	$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
 	$('canvas#abacus-canvas').attr('height',ABACUS_HEIGHT)
-	abacus1 = new Abacus('abacus-canvas')
+	abacus = new Abacus('abacus-canvas')
 	controller = new AbacusStateController()
 	initEventHandlers()
 	// Start animating the canvas
-	createjs.Ticker.on("tick", abacus1);
+	createjs.Ticker.on("tick", abacus);
 
 }
 
@@ -30,6 +30,9 @@ function initEventHandlers() {
 	// Nav-tab button handlers
 	$('#nav-tab a').on('click', function (e) {
 		e.preventDefault()
+	})
+	$('canvas#abacus-canvas').on('click',function(e) {
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 	})
 }
 
@@ -45,7 +48,7 @@ class Abacus extends createjs.Stage {
 	constructor(params,columns) {
 		super(params)
 		self = this
-		console.log('Initializing ' + columns + ' column abacus...')
+		console.log('Initializing abacus...')
 		this.columnCount = columns
 		this.width = $('#abacus-content').width();
 		this.columns = []
@@ -63,10 +66,8 @@ class Abacus extends createjs.Stage {
 		// Make a new column
 		var new_column = new Column(this,0)
 		new_column.multiplier = Math.pow(10,this.columns.length)
-		console.log(new_column.multiplier)
 		this.columns.unshift(new_column)
 		this.update()
-		console.log('Made column')
 
 	}
 	removeColumn() {
@@ -169,7 +170,7 @@ class Column {
 		bead.name = this.getCanvasMappingValue();
 		bead.origY = y; // The original unmodified x position of the bead, used to determine if it counts mathematically.
 		bead.column = this
-		bead.on("pressmove", this.handleBeadMovement);
+		bead.on('pressmove', this.handleBeadMovement);
 		this.abacus.addChild(bead)
 		return bead.name
 	}
