@@ -34,6 +34,14 @@ function initEventHandlers() {
 	$('canvas#abacus-canvas').on('click',function(e) {
 		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 	})
+	$('#abacus-output>p').on('input',function(e) {
+		e.target.textContent = cleanAbacusNumericInput(e.target.textContent)
+		abacus.setValue(e.target.textContent)
+	})
+}
+
+function cleanAbacusNumericInput(input) {
+	return input.replace(/([\W_]+)/g,'').substring(0,abacus.columns.length)
 }
 
 // Define an abacus controller to send/receive events to/from the abacus
@@ -76,9 +84,31 @@ class Abacus extends createjs.Stage {
 	getValue() {
 		var returnValue = 0
 		for (var column in self.columns) {
-			returnValue = returnValue + self.columns[column].getValue()
+			returnValue += self.columns[column].getValue()
 		}
 		return returnValue
+	}
+	setValue(value) {
+		var origValue = value
+		// Clear the abacus
+		this.reset()
+		for (var column in self.columns) {
+			// Determine if the column in the iteration contains the 'place' of the digit we need to represent
+			if ((value / self.columns[column].multiplier) >= 1 && (value / self.columns[column].multiplier) < 10) {
+				self.columns[column].setValue(Math.trunc(value/self.columns[column].multiplier))
+				value %= self.columns[column].multiplier
+			}
+		}
+		if (origValue == value) {
+			return -1
+		} else {
+			return origValue
+		}
+	}
+	reset() {
+		for (var column in self.columns) {
+			self.columns[column].setValue(0)
+		}
 	}
 }
 
@@ -116,7 +146,7 @@ class Column {
 		// Create two upper beads and add their names (identifiers) to our list of 'beads'
 		// Beads are allocated top-down
 		for (var bead_index in [0,1]) {
-			var upper_bead = this.newBeadAtXandY(this.center,14 + (bead_index * BEAD_HEIGHT))
+			var upper_bead = this.newBeadAtXandY(this.center,(BEAD_HEIGHT/2) + (bead_index * BEAD_HEIGHT))
 			this.beadsUpper.push(upper_bead)
 		}
 		// Create five lower beads and add their names (identifiers) to our list of 'beads'
@@ -133,7 +163,7 @@ class Column {
 			let origY = this.abacus.getChildByName(this.beadsUpper[id]).origY
 			let currY = this.abacus.getChildByName(this.beadsUpper[id]).y
 			if (Math.abs(origY - currY) >= BEAD_HEIGHT) {
-				returnValue = returnValue + (5 * this.multiplier)
+				returnValue += (5 * this.multiplier)
 			}
 		}
 		// Iterate through lower beads and add the moved values
@@ -141,13 +171,30 @@ class Column {
 			let origY = this.abacus.getChildByName(this.beadsLower[id]).origY
 			let currY = this.abacus.getChildByName(this.beadsLower[id]).y
 			if (Math.abs(origY - currY) >= BEAD_HEIGHT) {
-				returnValue = returnValue + this.multiplier
+				returnValue += this.multiplier
 			}
 		}
 		return returnValue;
 	}
 	setValue(value) {
-
+		// Takes a value between 0 and 10 and sets the column to represent that value.
+		value = value % 10
+		// Reset the current bead positions
+		for (var bead in this.beadsUpper) {
+			this.abacus.getChildByName(this.beadsUpper[bead]).y = this.abacus.getChildByName(this.beadsUpper[bead]).origY
+		}
+		for (var bead in this.beadsLower) {
+			this.abacus.getChildByName(this.beadsLower[bead]).y = this.abacus.getChildByName(this.beadsLower[bead]).origY
+		}
+		var lower_value = value % 5
+		if (value != lower_value) {
+			this.abacus.getChildByName(this.beadsUpper[1]).y += BEAD_HEIGHT
+		}
+		value = 0 // shameful variable reuse
+		for (; lower_value > 0; lower_value--) {
+			this.abacus.getChildByName(this.beadsLower[value]).y -= BEAD_HEIGHT
+			value++
+		}
 	}
 	moveToX(target_x) {
 		// Moves a column to a new start X value on the canvas
@@ -179,7 +226,7 @@ class Column {
 		var code = ''
 		for (var i=0; i< 16; i++) {
 			var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
-			code = code + chars[Math.round((Math.random() * 100) % (chars.length -1))]
+			code += chars[Math.round((Math.random() * 100) % (chars.length -1))]
 		}
 		return code
 	}
