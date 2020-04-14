@@ -12,6 +12,7 @@ const LINE_COLOR = '#000000'
 const LINE_WIDTH = 6
 const BEAD_HEIGHT = 32
 const BEAD_WIDTH = 80
+const MAX_VELOCITY = 7
 
 function initApp() {
 	$('#abacus-content').append('<canvas id="abacus-canvas"></canvas>')
@@ -41,7 +42,6 @@ function initEventHandlers() {
 	})
 	$(window).on('resize',function(e) {
 		$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
-		console.log('Window Resized')
 		while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
 			abacus.addColumn()
 		}
@@ -260,36 +260,77 @@ class Column {
 	}
 	handleBeadMovement(event) {
 		// Handle dragging of beads
-		let name = event.target.name
-		if (this.column.beadsUpper.includes(name)) {
-			this.column.handleUpperBeadMovement(event)
-		}
-		if (this.column.beadsLower.includes(name)) {
-			this.column.handleLowerBeadMovement(event)
-		}
-	}
-	handleUpperBeadMovement(event) {
 		let currY = event.stageY
 		let target = event.target
 		let name = target.name
-		// Get constraints for the current bead
-		var maxY = (ABACUS_HEIGHT / 3) - (LINE_WIDTH-2) - (BEAD_HEIGHT/2)
-		var minY = (BEAD_HEIGHT/2)
-		// Allow the bead to move within its constraints
-		if (currY > minY && currY < maxY) {
-			target.y = currY
+		var self = this.column
+		var dY = (currY - target.y)
+		// Limit the speed at which elements can be moved
+		if (dY > MAX_VELOCITY) {
+			dY = MAX_VELOCITY
+		}
+		if (dY < -MAX_VELOCITY) {
+			dY = -MAX_VELOCITY
+		}
+		// Handle upper bead movement
+		if (self.beadsUpper.includes(name)) {
+			var maxY = (ABACUS_HEIGHT / 3) - (LINE_WIDTH-2) - (BEAD_HEIGHT/2)
+			var minY = (BEAD_HEIGHT/2)
+			if (currY > minY && currY < maxY) {
+				var index = self.beadsUpper.indexOf(name)
+				self.moveBeadToY(name, dY, self.beadsUpper,minY,maxY)
+			}
+		}
+		// Handle lower bead movement
+		if (self.beadsLower.includes(name)) {
+			var maxY = ABACUS_HEIGHT - (BEAD_HEIGHT/2)
+			var minY = (ABACUS_HEIGHT / 3) + (BEAD_HEIGHT/2) + LINE_WIDTH
+			// Allow the bead to move within its constraints
+			if (currY > minY && currY < maxY) {
+				var index = self.beadsLower.indexOf(name)
+				self.moveBeadToY(name, dY, self.beadsLower,minY,maxY)
+			}
 		}
 	}
-	handleLowerBeadMovement(event) {
-		let currY = event.stageY
-		let target = event.target
-		let name = target.name
-		// Get constraints for the current bead
-		var maxY = ABACUS_HEIGHT - (BEAD_HEIGHT/2)
-		var minY = (ABACUS_HEIGHT / 3) + (BEAD_HEIGHT/2) + LINE_WIDTH
-		// Allow the bead to move within its constraints
-		if (currY > minY && currY < maxY) {
-			target.y = currY
+	moveBeadToY(id, dY, beads,lowerLimit,upperLimit) {
+		// Returns the distance moved from Y without a collision
+		// THIS IS A RECURSIVE FUNCTION THAT MOVES OTHER BEADS.
+		var index = beads.indexOf(id)
+		var bead = this.abacus.getChildByName(beads[index])
+		// Get next neighbor based on Y positivity
+		var neighbor = null
+		// Upper Neighbor
+		if (dY < 0 && index > 0) {
+			neighbor = this.abacus.getChildByName(beads[index-1])
+		}
+		// Lower Neighbor
+		if (dY > 0 && index < 4) {
+			neighbor = this.abacus.getChildByName(beads[index+1])
+		}
+		// Check if we are adjacent to the neighbor
+		if (neighbor !== null) {
+			if (Math.abs(neighbor.y - bead.y) <= BEAD_HEIGHT) {
+				var distance = 0
+				// We have a neighbor and are adjacent, he determinies our movement.
+				distance = this.moveBeadToY(neighbor.name,dY,beads,lowerLimit,upperLimit)
+				if (distance != 0) {
+					if (bead.y + distance < upperLimit && bead.y + distance > lowerLimit) {
+						bead.y += distance
+					}
+				}
+				// Return to neighbor how much we moved
+				return distance
+			}
+			// else we are not adjacent
+		}
+		// Check if we are within bounds
+		if (bead.y + dY < upperLimit && bead.y + dY > lowerLimit) {
+			// I can move, and I will!
+			bead.y += dY
+			return dY
+		} else {
+			// Cannot move due to bounds
+			return 0
 		}
 	}
 	destroy() {
