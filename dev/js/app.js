@@ -20,6 +20,8 @@ function initApp() {
 	abacus = new Abacus('abacus-canvas')
 	controller = new AbacusStateController()
 	initEventHandlers()
+	// Enable touch support
+	createjs.Touch.enable(abacus);
 	// Start animating the canvas
 	createjs.Ticker.on("tick", abacus);
 
@@ -34,14 +36,33 @@ function initEventHandlers() {
 	$('canvas#abacus-canvas').on('click',function(e) {
 		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 	})
+	$('canvas#abacus-canvas').on('touchmove',function(e) {
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+	})
+	$(window).on('resize',function(e) {
+		$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
+		console.log('Window Resized')
+		while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
+			abacus.addColumn()
+		}
+		while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
+			abacus.removeColumn()
+		}
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+
+	})
 	$('#abacus-output>p').on('input',function(e) {
-		e.target.textContent = cleanAbacusNumericInput(e.target.textContent)
-		abacus.setValue(e.target.textContent)
+		let newContent = cleanAbacusNumericInput(e.target.textContent)
+		e.target.textContent = newContent.replace('NaN','0')
+		abacus.setValue(newContent)
+	})
+	$('#abacus-output>p').on('blur',function(e) {
+		e.target.textContent = Number(e.target.textContent.replace(',','')).toLocaleString(undefined)
 	})
 }
 
 function cleanAbacusNumericInput(input) {
-	return input.replace(/([\W_]+)/g,'').substring(0,abacus.columns.length)
+	return input.replace(/([^0-9\r\n]+)/g,'').substring(0,abacus.columns.length)
 }
 
 // Define an abacus controller to send/receive events to/from the abacus
@@ -79,7 +100,14 @@ class Abacus extends createjs.Stage {
 
 	}
 	removeColumn() {
-
+		// Remove leftmost column
+		this.columns[0].destroy()
+		this.columns.shift()
+		// Move the columns to the right and change their multiplier
+		for (var column in this.columns) {
+			this.columns[column].moveToX(this.columns[column].start - COLUMN_WIDTH)
+			this.columns[column].multiplier = Math.pow(10,(this.columns.length - column -1))
+		}
 	}
 	getValue() {
 		var returnValue = 0
@@ -188,11 +216,11 @@ class Column {
 		}
 		var lower_value = value % 5
 		if (value != lower_value) {
-			this.abacus.getChildByName(this.beadsUpper[1]).y += BEAD_HEIGHT
+			this.abacus.getChildByName(this.beadsUpper[1]).y += (BEAD_HEIGHT * 1.5)
 		}
 		value = 0 // shameful variable reuse
 		for (; lower_value > 0; lower_value--) {
-			this.abacus.getChildByName(this.beadsLower[value]).y -= BEAD_HEIGHT
+			this.abacus.getChildByName(this.beadsLower[value]).y -= (BEAD_HEIGHT * 1.5)
 			value++
 		}
 	}
@@ -262,6 +290,18 @@ class Column {
 		// Allow the bead to move within its constraints
 		if (currY > minY && currY < maxY) {
 			target.y = currY
+		}
+	}
+	destroy() {
+		// Loop through structures and remove them from the stage
+		for (var line in this.lines) {
+			this.abacus.removeChild(this.abacus.getChildByName(this.lines[line]))
+		}
+		for (var bead in this.beadsUpper) {
+			this.abacus.removeChild(this.abacus.getChildByName(this.beadsUpper[bead]))
+		}
+		for (var bead in this.beadsLower) {
+			this.abacus.removeChild(this.abacus.getChildByName(this.beadsLower[bead]))
 		}
 	}
 }
