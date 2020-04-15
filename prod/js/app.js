@@ -12,6 +12,7 @@ const LINE_COLOR = '#000000'
 const LINE_WIDTH = 6
 const BEAD_HEIGHT = 32
 const BEAD_WIDTH = 80
+const MAX_VELOCITY = 7
 
 function initApp() {
 	$('#abacus-content').append('<canvas id="abacus-canvas"></canvas>')
@@ -20,6 +21,8 @@ function initApp() {
 	abacus = new Abacus('abacus-canvas')
 	controller = new AbacusStateController()
 	initEventHandlers()
+	// Enable touch support
+	createjs.Touch.enable(abacus);
 	// Start animating the canvas
 	createjs.Ticker.on("tick", abacus);
 
@@ -34,6 +37,32 @@ function initEventHandlers() {
 	$('canvas#abacus-canvas').on('click',function(e) {
 		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 	})
+	$('canvas#abacus-canvas').on('touchmove',function(e) {
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+	})
+	$(window).on('resize',function(e) {
+		$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
+		while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
+			abacus.addColumn()
+		}
+		while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
+			abacus.removeColumn()
+		}
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+
+	})
+	$('#abacus-output>p').on('input',function(e) {
+		let newContent = cleanAbacusNumericInput(e.target.textContent)
+		e.target.textContent = newContent.replace('NaN','0')
+		abacus.setValue(newContent)
+	})
+	$('#abacus-output>p').on('blur',function(e) {
+		e.target.textContent = Number(e.target.textContent.replace(',','')).toLocaleString(undefined)
+	})
+}
+
+function cleanAbacusNumericInput(input) {
+	return input.replace(/([^0-9\r\n]+)/g,'').substring(0,abacus.columns.length)
 }
 
 // Define an abacus controller to send/receive events to/from the abacus
@@ -71,14 +100,43 @@ class Abacus extends createjs.Stage {
 
 	}
 	removeColumn() {
-
+		// Remove leftmost column
+		this.columns[0].destroy()
+		this.columns.shift()
+		// Move the columns to the right and change their multiplier
+		for (var column in this.columns) {
+			this.columns[column].moveToX(this.columns[column].start - COLUMN_WIDTH)
+			this.columns[column].multiplier = Math.pow(10,(this.columns.length - column -1))
+		}
 	}
 	getValue() {
 		var returnValue = 0
 		for (var column in self.columns) {
-			returnValue = returnValue + self.columns[column].getValue()
+			returnValue += self.columns[column].getValue()
 		}
 		return returnValue
+	}
+	setValue(value) {
+		var origValue = value
+		// Clear the abacus
+		this.reset()
+		for (var column in self.columns) {
+			// Determine if the column in the iteration contains the 'place' of the digit we need to represent
+			if ((value / self.columns[column].multiplier) >= 1 && (value / self.columns[column].multiplier) < 10) {
+				self.columns[column].setValue(Math.trunc(value/self.columns[column].multiplier))
+				value %= self.columns[column].multiplier
+			}
+		}
+		if (origValue == value) {
+			return -1
+		} else {
+			return origValue
+		}
+	}
+	reset() {
+		for (var column in self.columns) {
+			self.columns[column].setValue(0)
+		}
 	}
 }
 
@@ -116,7 +174,7 @@ class Column {
 		// Create two upper beads and add their names (identifiers) to our list of 'beads'
 		// Beads are allocated top-down
 		for (var bead_index in [0,1]) {
-			var upper_bead = this.newBeadAtXandY(this.center,14 + (bead_index * BEAD_HEIGHT))
+			var upper_bead = this.newBeadAtXandY(this.center,(BEAD_HEIGHT/2) + (bead_index * BEAD_HEIGHT))
 			this.beadsUpper.push(upper_bead)
 		}
 		// Create five lower beads and add their names (identifiers) to our list of 'beads'
@@ -133,7 +191,7 @@ class Column {
 			let origY = this.abacus.getChildByName(this.beadsUpper[id]).origY
 			let currY = this.abacus.getChildByName(this.beadsUpper[id]).y
 			if (Math.abs(origY - currY) >= BEAD_HEIGHT) {
-				returnValue = returnValue + (5 * this.multiplier)
+				returnValue += (5 * this.multiplier)
 			}
 		}
 		// Iterate through lower beads and add the moved values
@@ -141,13 +199,30 @@ class Column {
 			let origY = this.abacus.getChildByName(this.beadsLower[id]).origY
 			let currY = this.abacus.getChildByName(this.beadsLower[id]).y
 			if (Math.abs(origY - currY) >= BEAD_HEIGHT) {
-				returnValue = returnValue + this.multiplier
+				returnValue += this.multiplier
 			}
 		}
 		return returnValue;
 	}
 	setValue(value) {
-
+		// Takes a value between 0 and 10 and sets the column to represent that value.
+		value = value % 10
+		// Reset the current bead positions
+		for (var bead in this.beadsUpper) {
+			this.abacus.getChildByName(this.beadsUpper[bead]).y = this.abacus.getChildByName(this.beadsUpper[bead]).origY
+		}
+		for (var bead in this.beadsLower) {
+			this.abacus.getChildByName(this.beadsLower[bead]).y = this.abacus.getChildByName(this.beadsLower[bead]).origY
+		}
+		var lower_value = value % 5
+		if (value != lower_value) {
+			this.abacus.getChildByName(this.beadsUpper[1]).y += (BEAD_HEIGHT * 1.5)
+		}
+		value = 0 // shameful variable reuse
+		for (; lower_value > 0; lower_value--) {
+			this.abacus.getChildByName(this.beadsLower[value]).y -= (BEAD_HEIGHT * 1.5)
+			value++
+		}
 	}
 	moveToX(target_x) {
 		// Moves a column to a new start X value on the canvas
@@ -179,42 +254,95 @@ class Column {
 		var code = ''
 		for (var i=0; i< 16; i++) {
 			var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
-			code = code + chars[Math.round((Math.random() * 100) % (chars.length -1))]
+			code += chars[Math.round((Math.random() * 100) % (chars.length -1))]
 		}
 		return code
 	}
 	handleBeadMovement(event) {
 		// Handle dragging of beads
-		let name = event.target.name
-		if (this.column.beadsUpper.includes(name)) {
-			this.column.handleUpperBeadMovement(event)
-		}
-		if (this.column.beadsLower.includes(name)) {
-			this.column.handleLowerBeadMovement(event)
-		}
-	}
-	handleUpperBeadMovement(event) {
 		let currY = event.stageY
 		let target = event.target
 		let name = target.name
-		// Get constraints for the current bead
-		var maxY = (ABACUS_HEIGHT / 3) - (LINE_WIDTH-2) - (BEAD_HEIGHT/2)
-		var minY = (BEAD_HEIGHT/2)
-		// Allow the bead to move within its constraints
-		if (currY > minY && currY < maxY) {
-			target.y = currY
+		var self = this.column
+		var dY = (currY - target.y)
+		// Limit the speed at which elements can be moved
+		if (dY > MAX_VELOCITY) {
+			dY = MAX_VELOCITY
+		}
+		if (dY < -MAX_VELOCITY) {
+			dY = -MAX_VELOCITY
+		}
+		// Handle upper bead movement
+		if (self.beadsUpper.includes(name)) {
+			var maxY = (ABACUS_HEIGHT / 3) - (LINE_WIDTH-2) - (BEAD_HEIGHT/2)
+			var minY = (BEAD_HEIGHT/2)
+			if (currY > minY && currY < maxY) {
+				var index = self.beadsUpper.indexOf(name)
+				self.moveBeadToY(name, dY, self.beadsUpper,minY,maxY)
+			}
+		}
+		// Handle lower bead movement
+		if (self.beadsLower.includes(name)) {
+			var maxY = ABACUS_HEIGHT - (BEAD_HEIGHT/2)
+			var minY = (ABACUS_HEIGHT / 3) + (BEAD_HEIGHT/2) + LINE_WIDTH
+			// Allow the bead to move within its constraints
+			if (currY > minY && currY < maxY) {
+				var index = self.beadsLower.indexOf(name)
+				self.moveBeadToY(name, dY, self.beadsLower,minY,maxY)
+			}
 		}
 	}
-	handleLowerBeadMovement(event) {
-		let currY = event.stageY
-		let target = event.target
-		let name = target.name
-		// Get constraints for the current bead
-		var maxY = ABACUS_HEIGHT - (BEAD_HEIGHT/2)
-		var minY = (ABACUS_HEIGHT / 3) + (BEAD_HEIGHT/2) + LINE_WIDTH
-		// Allow the bead to move within its constraints
-		if (currY > minY && currY < maxY) {
-			target.y = currY
+	moveBeadToY(id, dY, beads,lowerLimit,upperLimit) {
+		// Returns the distance moved from Y without a collision
+		// THIS IS A RECURSIVE FUNCTION THAT MOVES OTHER BEADS.
+		var index = beads.indexOf(id)
+		var bead = this.abacus.getChildByName(beads[index])
+		// Get next neighbor based on Y positivity
+		var neighbor = null
+		// Upper Neighbor
+		if (dY < 0 && index > 0) {
+			neighbor = this.abacus.getChildByName(beads[index-1])
+		}
+		// Lower Neighbor
+		if (dY > 0 && index < 4) {
+			neighbor = this.abacus.getChildByName(beads[index+1])
+		}
+		// Check if we are adjacent to the neighbor
+		if (neighbor !== null) {
+			if (Math.abs(neighbor.y - bead.y) <= BEAD_HEIGHT) {
+				var distance = 0
+				// We have a neighbor and are adjacent, he determinies our movement.
+				distance = this.moveBeadToY(neighbor.name,dY,beads,lowerLimit,upperLimit)
+				if (distance != 0) {
+					if (bead.y + distance < upperLimit && bead.y + distance > lowerLimit) {
+						bead.y += distance
+					}
+				}
+				// Return to neighbor how much we moved
+				return distance
+			}
+			// else we are not adjacent
+		}
+		// Check if we are within bounds
+		if (bead.y + dY < upperLimit && bead.y + dY > lowerLimit) {
+			// I can move, and I will!
+			bead.y += dY
+			return dY
+		} else {
+			// Cannot move due to bounds
+			return 0
+		}
+	}
+	destroy() {
+		// Loop through structures and remove them from the stage
+		for (var line in this.lines) {
+			this.abacus.removeChild(this.abacus.getChildByName(this.lines[line]))
+		}
+		for (var bead in this.beadsUpper) {
+			this.abacus.removeChild(this.abacus.getChildByName(this.beadsUpper[bead]))
+		}
+		for (var bead in this.beadsLower) {
+			this.abacus.removeChild(this.abacus.getChildByName(this.beadsLower[bead]))
 		}
 	}
 }
