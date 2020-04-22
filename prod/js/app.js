@@ -4,7 +4,8 @@
 // Spring 2020
 //
 
-const ABACUS_HEIGHT = Math.max.apply(Math,[$(window).height()/3,400])
+// const ABACUS_HEIGHT = Math.max.apply(Math,[$(window).height()/3,350])
+const ABACUS_HEIGHT = 350
 const COLUMN_WIDTH = 100
 const BEAD_FILL_COLOR = '#ff0000'
 const BEAD_STROKE_COLOR = '#aa0000'
@@ -14,12 +15,16 @@ const BEAD_HEIGHT = 32
 const BEAD_WIDTH = 80
 const MAX_VELOCITY = 7
 
+
 function initApp() {
 	$('#abacus-content').append('<canvas id="abacus-canvas"></canvas>')
 	$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
 	$('canvas#abacus-canvas').attr('height',ABACUS_HEIGHT)
+	controller = new ChallengeController($('.challenges-pane'))
 	abacus = new Abacus('abacus-canvas')
-	controller = new AbacusStateController()
+	abacus.controller = controller
+	controller.abacus = abacus
+	controller.getChallenges()
 	initEventHandlers()
 	// Enable touch support
 	createjs.Touch.enable(abacus);
@@ -34,22 +39,36 @@ function initEventHandlers() {
 	$('#nav-tab a').on('click', function (e) {
 		e.preventDefault()
 	})
-	$('canvas#abacus-canvas').on('click',function(e) {
+	$('.wrapper').on('updateNumber',function(event) {
 		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('#abacus-output-mirror').text(abacus.getValue().toLocaleString(undefined))
+	})
+	$('#collapse-challenges').on('click', function () {
+		$('#challenges, #content').toggleClass('active');
+		// Change abacus size based on the challenges window
+		if (Array.from($('#challenges')[0].classList).includes('active')) {
+			changeAbacusWidth($('#abacus-content').width() + $('#challenges').width())
+			$('#abacus-output>p').attr('contenteditable','true')
+
+		} else 	{
+			abacus.reset()
+			changeAbacusWidth($('#abacus-content').width() - $('#challenges').width())
+			$('#abacus-output > p').attr('contenteditable','false')
+			$('.wrapper').trigger('updateNumber')
+		}
+		$('.collapse.in').toggleClass('in');
+		$('a[aria-expanded=true]').attr('aria-expanded', 'false');
+		// console.log($('#abacus-content').css('width'))
+		$(window).trigger('resize')
+	});
+
+	$('canvas#abacus-canvas').on('click',function(e) {
+		$('.wrapper').trigger('updateNumber')
 	})
 	$('canvas#abacus-canvas').on('touchmove',function(e) {
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('.wrapper').trigger('updateNumber')
 	})
 	$(window).on('resize',function(e) {
-		$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
-		while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
-			abacus.addColumn()
-		}
-		while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
-			abacus.removeColumn()
-		}
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
-
 	})
 	$('#abacus-output>p').on('input',function(e) {
 		let newContent = cleanAbacusNumericInput(e.target.textContent)
@@ -59,16 +78,129 @@ function initEventHandlers() {
 	$('#abacus-output>p').on('blur',function(e) {
 		e.target.textContent = Number(e.target.textContent.replace(',','')).toLocaleString(undefined)
 	})
+	$('#add-button').on('click',function(e) {
+		abacus.setValue(abacus.getValue()+1)
+		$('.wrapper').trigger('updateNumber')
+	})
+	$('#sub-button').on('click',function(e) {
+		abacus.setValue(abacus.getValue()-1)
+		$('.wrapper').trigger('updateNumber')
+	})
+	$('#prev-button').on('click',function() {
+		controller.setupQuestion(controller.currentChallengeIndex - 1)
+	})
+	$('#next-button').on('click',function() {
+		controller.setupQuestion(controller.currentChallengeIndex + 1)
+	})
+
+}
+
+function changeAbacusWidth(width) {
+	$('canvas#abacus-canvas').attr('width',width)
+	while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
+		abacus.addColumn()
+	}
+	while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
+		abacus.removeColumn()
+	}
+	$('.wrapper').trigger('updateNumber')
+
 }
 
 function cleanAbacusNumericInput(input) {
 	return input.replace(/([^0-9\r\n]+)/g,'').substring(0,abacus.columns.length)
 }
 
-// Define an abacus controller to send/receive events to/from the abacus
-class AbacusStateController {
-	constructor() {
-		console.log('Initializing controller...')
+// Define an challenge controller to send/receive events to/from the abacus
+class ChallengeController {
+	constructor($challengeElement) {
+		console.log('Initializing challenge controller...')
+		var self = this
+		this.element = $challengeElement
+		this.elementText = this.element.children('p').eq(0);
+		this.prevButton = this.element.children('div').eq(0).children('button').eq(0)
+		this.nextButton = this.element.children('div').eq(0).children('button').eq(1)
+		this.challenges = []
+		this.currentChallengeIndex = 0
+	}
+	getChallenges() {
+		var self = this
+		$.get('challenges.json',function(data) {
+			self.challenges = data
+			for (var challenge in self.challenges) {
+				self.challenges[challenge].completed = false;
+			}
+			self.setupQuestion(0)
+		})
+	}
+	getQuestionText(index) {
+		return this.challenges[index]['text']
+	}
+	getQuestionAnswer(index) {
+		return this.challenges[index]['target']
+	}
+	getQuestionSolutionText(index) {
+		return this.challenges[index]['solution']
+	}
+	checkChallengeValue(value) {
+		if (!Array.from($('#challenges')[0].classList).includes('active')) {
+			if (value == this.getQuestionAnswer(this.currentChallengeIndex)) {
+				this.challenges[this.currentChallengeIndex].completed = true
+				$('#abacus-content').addClass('correct')
+				this.nextButton.attr('disabled', false)
+				var solutionText = this.getCongratulationsText() + ' ' + this.getQuestionSolutionText(this.currentChallengeIndex)
+				this.element.children('h2').eq(0).text(solutionText)
+				this.triggerConfetti()
+				// this.setupQuestion(this.currentChallengeIndex + 1)
+			}
+		}
+	}
+	getCongratulationsText() {
+		var texts = [
+			'Nice job!',
+			'Good job!',
+			'Awesome!',
+			'Excellent work!',
+			'You got it!',
+			'That\'s it!',
+			'That\'s right!']
+		return texts[Math.round(Math.random() * 100) % texts.length]
+	}
+
+	setupQuestion(index) {
+		if (index >= this.challenges.length) {
+			index = 0
+		}
+		if (typeof this.confetti !== 'undefined') {
+			this.confetti.clear()
+		}
+		this.element.children('h2').eq(0).text('')
+		$('#abacus-content').removeClass('correct')
+		this.currentChallengeIndex = index
+		this.element.children('h3').eq(0).text('Current Challenge: ' + (this.currentChallengeIndex + 1))
+		if (this.currentChallengeIndex == 0) {
+			this.prevButton.attr('disabled', true)
+		} else {
+			this.prevButton.attr('disabled', false)
+		}
+		if (this.currentChallengeIndex == this.challenges.length-1 || this.challenges[this.currentChallengeIndex].completed == false) {
+			this.nextButton.attr('disabled', true)
+		} else {
+			this.nextButton.attr('disabled', false)
+		}
+		this.elementText.text(this.getQuestionText(index))
+	}
+	triggerConfetti() {
+		var confettiSettings = {
+			target: document.getElementById('confetti-holder'),
+			respawn: false,
+			rotate: true,
+			clock: 25,
+			props: ['square'],
+			max: 100
+		};
+		this.confetti = new ConfettiGenerator(confettiSettings);
+		this.confetti.render()
 	}
 }
 
@@ -78,6 +210,7 @@ class Abacus extends createjs.Stage {
 		super(params)
 		self = this
 		console.log('Initializing abacus...')
+		this.controller = null
 		this.columnCount = columns
 		this.width = $('#abacus-content').width();
 		this.columns = []
@@ -114,6 +247,7 @@ class Abacus extends createjs.Stage {
 		for (var column in self.columns) {
 			returnValue += self.columns[column].getValue()
 		}
+		this.controller.checkChallengeValue(returnValue)
 		return returnValue
 	}
 	setValue(value) {
@@ -304,7 +438,7 @@ class Column {
 			neighbor = this.abacus.getChildByName(beads[index-1])
 		}
 		// Lower Neighbor
-		if (dY > 0 && index < 4) {
+		if (dY > 0 && index < (beads.length - 1)) {
 			neighbor = this.abacus.getChildByName(beads[index+1])
 		}
 		// Check if we are adjacent to the neighbor
