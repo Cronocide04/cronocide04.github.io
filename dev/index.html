@@ -6,7 +6,7 @@
 	<meta http-equiv="X-UA-Compatible" content="ie=edge">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
 	<link rel="stylesheet" type="text/css" href="css/styles.css" media="screen"/>
-	<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
 	<script src="js/easeljs.min.js"></script>
 	<script src="js/app.js"></script>
@@ -14,32 +14,37 @@
 
 </head>
 <body>
-	<div class="header">
-		<h1>UVBacus by Team 1</h1>
-	</div>
-	<div class="tab-bar row align-items-center justify-content-center">
-		<ul class="nav nav-pills mb-3" id="nav-tab" role="tablist">
-			<li class="nav-item"><a class="nav-link" id="challenges-tab" data-toggle="tab" href="#challenges" role="tab" aria-controls="challenges" aria-selected="false">Challenges</a></li>
-			<li class="nav-item active"><a class="nav-link active" id="abacus-tab" data-toggle="tab" href="#abacus" role="tab" aria-controls="abacus" aria-selected="true">Abacus</a></li>
-			<li class="nav-item"><a class="nav-link" id="help-tab" data-toggle="tab" href="#help" role="tab" aria-controls="help" aria-selected="false">Help</a></li>
-		</ul>
-	</div>
-	<div class="tab-content">
-		<div class="tab-pane fade show active" id="abacus" role="tabpanel" aria-labelledby="abacus-tab">
-			<div id="abacus-content">
+	<div class="wrapper">
+		<nav id="challenges" class="active">
+			<div class="challenges-pane">
+				<button id="add-button" class="btn btn-dark" type="submit">+</button>
+				<button id="sub-button" class="btn btn-dark" type="submit">-</button>
+				<h3>Current Challenge</h3>
+				<p id="challenge-text">Challenge Text</p>
+				<div id="challenge-nav container-fluid">
+					<button id="prev-button" class="btn btn-dark col-md-5 col-md-offset-1" type="submit"><</button>
+					<button id="next-button" class="btn btn-dark col-md-5" type="submit">></button>
+				</div>
 			</div>
-			<div id="abacus-output">
-				<p contenteditable>0</p>
+		</nav>
+		<div id="content" class="active">
+			<div class="tab-content">
+				<button type="button" id="collapse-challenges" class="btn btn-success">
+					<span>Challenges</span>
+				</button>
+				<div class="header">
+					<h1>UVBacus by Team 1</h1>
+				</div>
+				<div class="tab-pane show active" id="abacus">
+					<div id="abacus-content">
+					</div>
+					<div id="abacus-output">
+						<p contenteditable>0</p>
+					</div>
+				</div>
 			</div>
 		</div>
-		<div class="tab-pane fade" id="challenges" role="tabpanel" aria-labelledby="challenges-tab">
-			<p>Challenges</p>
+		<div id="footer">
 		</div>
-		<div class="tab-pane fade" id="help" role="tabpanel" aria-labelledby="help-tab">
-			<p>Help</p>
-		</div>
-	</div>
-	<div id="footer">
-	</div>
-</body>
-</html>
+	</body>
+	</html>

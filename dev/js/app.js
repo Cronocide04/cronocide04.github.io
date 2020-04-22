@@ -4,7 +4,8 @@
 // Spring 2020
 //
 
-const ABACUS_HEIGHT = Math.max.apply(Math,[$(window).height()/3,400])
+// const ABACUS_HEIGHT = Math.max.apply(Math,[$(window).height()/3,350])
+const ABACUS_HEIGHT = 350
 const COLUMN_WIDTH = 100
 const BEAD_FILL_COLOR = '#ff0000'
 const BEAD_STROKE_COLOR = '#aa0000'
@@ -18,8 +19,10 @@ function initApp() {
 	$('#abacus-content').append('<canvas id="abacus-canvas"></canvas>')
 	$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
 	$('canvas#abacus-canvas').attr('height',ABACUS_HEIGHT)
+	controller = new ChallengeController($('.challenges-pane'))
 	abacus = new Abacus('abacus-canvas')
-	controller = new AbacusStateController()
+	abacus.controller = controller
+	controller.getChallenges()
 	initEventHandlers()
 	// Enable touch support
 	createjs.Touch.enable(abacus);
@@ -34,6 +37,25 @@ function initEventHandlers() {
 	$('#nav-tab a').on('click', function (e) {
 		e.preventDefault()
 	})
+	$('#collapse-challenges').on('click', function () {
+		$('#challenges, #content').toggleClass('active');
+		// Change abacus size based on the challenges window
+		if (Array.from($('#challenges')[0].classList).includes('active')) {
+			changeAbacusWidth($('#abacus-content').width() + $('#challenges').width())
+			$('#abacus-output>p').attr('contenteditable','true')
+
+		} else 	{
+			abacus.reset()
+			changeAbacusWidth($('#abacus-content').width() - $('#challenges').width())
+			$('#abacus-output > p').attr('contenteditable','false')
+			$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		}
+		$('.collapse.in').toggleClass('in');
+		$('a[aria-expanded=true]').attr('aria-expanded', 'false');
+		// console.log($('#abacus-content').css('width'))
+		$(window).trigger('resize')
+	});
+
 	$('canvas#abacus-canvas').on('click',function(e) {
 		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 	})
@@ -41,15 +63,6 @@ function initEventHandlers() {
 		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 	})
 	$(window).on('resize',function(e) {
-		$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
-		while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
-			abacus.addColumn()
-		}
-		while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
-			abacus.removeColumn()
-		}
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
-
 	})
 	$('#abacus-output>p').on('input',function(e) {
 		let newContent = cleanAbacusNumericInput(e.target.textContent)
@@ -59,16 +72,95 @@ function initEventHandlers() {
 	$('#abacus-output>p').on('blur',function(e) {
 		e.target.textContent = Number(e.target.textContent.replace(',','')).toLocaleString(undefined)
 	})
+	$('#add-button').on('click',function(e) {
+		abacus.setValue(abacus.getValue()+1)
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+	})
+	$('#sub-button').on('click',function(e) {
+		abacus.setValue(abacus.getValue()-1)
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+	})
+	$('#prev-button').on('click',function() {
+		controller.setupQuestion(controller.currentChallengeIndex - 1)
+	})
+	$('#next-button').on('click',function() {
+		controller.setupQuestion(controller.currentChallengeIndex + 1)
+	})
+
+}
+
+function changeAbacusWidth(width) {
+	$('canvas#abacus-canvas').attr('width',width)
+	while ((abacus.columns.length * COLUMN_WIDTH) < ($('canvas#abacus-canvas').attr('width') - COLUMN_WIDTH)) {
+		abacus.addColumn()
+	}
+	while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
+		abacus.removeColumn()
+	}
+	$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
 }
 
 function cleanAbacusNumericInput(input) {
 	return input.replace(/([^0-9\r\n]+)/g,'').substring(0,abacus.columns.length)
 }
 
-// Define an abacus controller to send/receive events to/from the abacus
-class AbacusStateController {
-	constructor() {
-		console.log('Initializing controller...')
+// Define an challenge controller to send/receive events to/from the abacus
+class ChallengeController {
+	constructor($challengeElement) {
+		console.log('Initializing challenge controller...')
+		var self = this
+		this.element = $challengeElement
+		this.elementText = this.element.children('p').eq(0);
+		this.prevButton = this.element.children('div').eq(0).children('button').eq(0)
+		this.nextButton = this.element.children('div').eq(0).children('button').eq(1)
+		this.challenges = []
+		this.currentChallengeIndex = 0
+	}
+	getChallenges() {
+		var self = this
+		$.get('/challenges.json',function(data) {
+			self.challenges = data
+			for (var challenge in self.challenges) {
+				self.challenges[challenge].completed = false;
+			}
+			self.setupQuestion(0)
+		})
+	}
+	getQuestionText(index) {
+		return Object.keys(this.challenges[index])[0]
+	}
+	getQuestionAnswer(index) {
+		return this.challenges[index][Object.keys(this.challenges[index])[0]]
+	}
+	checkChallengeValue(value) {
+		console.log(value)
+		if (!Array.from($('#challenges')[0].classList).includes('active')) {
+			if (value == this.getQuestionAnswer(this.currentChallengeIndex)) {
+				this.challenges[this.currentChallengeIndex].completed = true
+				$('#abacus-content').addClass('correct')
+				this.nextButton.attr('disabled', false)
+				alert('Correct!')
+				// this.setupQuestion(this.currentChallengeIndex + 1)
+			}
+		}
+	}
+	incrementCurrentQuestion(index) {
+		this.currentChallengeIndex += 1
+	}
+	setupQuestion(index) {
+		$('#abacus-content').removeClass('correct')
+		this.currentChallengeIndex = index
+		if (this.currentChallengeIndex == 0) {
+			this.prevButton.attr('disabled', true)
+		} else {
+			this.prevButton.attr('disabled', false)
+		}
+		if (this.currentChallengeIndex == this.challenges.length-1 || this.challenges[this.currentChallengeIndex].completed == false) {
+			this.nextButton.attr('disabled', true)
+		} else {
+			this.nextButton.attr('disabled', false)
+		}
+		this.elementText.text(this.getQuestionText(index))
 	}
 }
 
@@ -78,6 +170,7 @@ class Abacus extends createjs.Stage {
 		super(params)
 		self = this
 		console.log('Initializing abacus...')
+		this.controller = null
 		this.columnCount = columns
 		this.width = $('#abacus-content').width();
 		this.columns = []
@@ -114,6 +207,7 @@ class Abacus extends createjs.Stage {
 		for (var column in self.columns) {
 			returnValue += self.columns[column].getValue()
 		}
+		this.controller.checkChallengeValue(returnValue)
 		return returnValue
 	}
 	setValue(value) {
@@ -304,7 +398,7 @@ class Column {
 			neighbor = this.abacus.getChildByName(beads[index-1])
 		}
 		// Lower Neighbor
-		if (dY > 0 && index < 4) {
+		if (dY > 0 && index < (beads.length - 1)) {
 			neighbor = this.abacus.getChildByName(beads[index+1])
 		}
 		// Check if we are adjacent to the neighbor

@@ -18,11 +18,67 @@ html {
 	margin: 20px;
 }
 
+.challenges-pane {
+	margin: 10px;
+}
+
 #abacus-content {
 	border: 1px solid black;
 	border-radius: 5px;
+	box-shadow: 0px 30px 40px rgba(0,0,0,.1);
+}
+
+#abacus-content.correct {
+	box-shadow: 0px 0px 50px rgba(0,255,0,.8);
 }
 
 #abacus-output>p {
 	font-size: 72pt;
+}
+
+#challenges {
+	width: 30%;
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 100vh;
+	z-index: 999;
+	transition: all 0.3s;
+	border-right: 1px solid black;
+	background: white !important;
+}
+
+#challenges.active {
+	margin-left: -30%;
+}
+
+#challenge-nav {
+	margin: auto;
+}
+.challenges-pane > h3 {
+	text-align: center;
+	text-decoration: underline;
+}
+
+#challenge-text {
+	text-align: center;
+	font-size: 2em;
+}
+
+#content {
+	width: calc(100% - 30%);
+	padding: 15px;
+	min-height: 100vh;
+	transition: all 0.3s;
+	position: absolute;
+	top: 0;
+	right: 0;
+}
+
+#content.active {
+	width: 100%;
+}
+
+nav {
+	background-color: rgba(0,0,0,0) !important;
 }
