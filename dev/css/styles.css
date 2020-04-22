@@ -22,6 +22,10 @@ html {
 	margin: 10px;
 }
 
+#header {
+	margin: 15px;
+}
+
 #abacus-content {
 	border: 1px solid black;
 	border-radius: 5px;
@@ -34,6 +38,20 @@ html {
 
 #abacus-output>p {
 	font-size: 72pt;
+	text-align: center;
+}
+#abacus-output-mirror {
+	text-align: center;
+	display: inline;
+	max-width: 80%;
+	margin-left: 1em;
+	margin-right: 1em;
+	font-weight: bold;
+}
+
+.btn-success,.btn-success:hover,.btn-success:focus {
+	background-color: #275D38;
+	box-shadow: none;
 }
 
 #challenges {
@@ -43,21 +61,30 @@ html {
 	left: 0;
 	height: 100vh;
 	z-index: 999;
-	transition: all 0.3s;
+	transition: all .3s;
 	border-right: 1px solid black;
 	background: white !important;
+	display: block;
 }
 
 #challenges.active {
 	margin-left: -30%;
+	visibility: hidden;
 }
 
 #challenge-nav {
 	margin: auto;
 }
+
+.challenges-pane > h2 {
+	text-align: center;
+	margin: 15px;
+}
+
 .challenges-pane > h3 {
 	text-align: center;
 	text-decoration: underline;
+	margin: 15px;
 }
 
 #challenge-text {
@@ -69,7 +96,7 @@ html {
 	width: calc(100% - 30%);
 	padding: 15px;
 	min-height: 100vh;
-	transition: all 0.3s;
+	transition: all .5s;
 	position: absolute;
 	top: 0;
 	right: 0;
@@ -81,4 +108,21 @@ html {
 
 nav {
 	background-color: rgba(0,0,0,0) !important;
+}
+
+.navbar-text {
+	display: block;
+	text-align:center;
+	font-size: 3em;
+}
+
+.wrapper {
+	z-index: 1
+}
+
+canvas#confetti-holder {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
 }

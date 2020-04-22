@@ -8,23 +8,28 @@
 	<link rel="stylesheet" type="text/css" href="css/styles.css" media="screen"/>
 	<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
 	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+	<script src="js/confetti-js/dist/index.min.js"></script>
 	<script src="js/easeljs.min.js"></script>
 	<script src="js/app.js"></script>
 	<title>Team 1's UVBacus</title>
 
 </head>
 <body>
+	<canvas id="confetti-holder">Canvas not supported :-(</canvas>
 	<div class="wrapper">
 		<nav id="challenges" class="active">
-			<div class="challenges-pane">
-				<button id="add-button" class="btn btn-dark" type="submit">+</button>
-				<button id="sub-button" class="btn btn-dark" type="submit">-</button>
-				<h3>Current Challenge</h3>
-				<p id="challenge-text">Challenge Text</p>
-				<div id="challenge-nav container-fluid">
+			<div class="challenges-pane center-block pagination-centered text-center">
+
+				<div id="challenge-nav">
 					<button id="prev-button" class="btn btn-dark col-md-5 col-md-offset-1" type="submit"><</button>
 					<button id="next-button" class="btn btn-dark col-md-5" type="submit">></button>
 				</div>
+				<h3>Current Challenge</h3>
+				<p id="challenge-text">Challenge Text</p>
+				<button id="add-button" class="btn btn-dark" type="submit">+</button>
+				<p id="abacus-output-mirror">f</p>
+				<button id="sub-button" class="btn btn-dark" type="submit">-</button>
+				<h2></h2>
 			</div>
 		</nav>
 		<div id="content" class="active">
@@ -33,7 +38,7 @@
 					<span>Challenges</span>
 				</button>
 				<div class="header">
-					<h1>UVBacus by Team 1</h1>
+					<h1>UVbacus by Team 1</h1>
 				</div>
 				<div class="tab-pane show active" id="abacus">
 					<div id="abacus-content">
@@ -43,8 +48,6 @@
 					</div>
 				</div>
 			</div>
-		</div>
-		<div id="footer">
 		</div>
 	</body>
 	</html>

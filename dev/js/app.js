@@ -15,6 +15,7 @@ const BEAD_HEIGHT = 32
 const BEAD_WIDTH = 80
 const MAX_VELOCITY = 7
 
+
 function initApp() {
 	$('#abacus-content').append('<canvas id="abacus-canvas"></canvas>')
 	$('canvas#abacus-canvas').attr('width',$('#abacus-content').width())
@@ -22,6 +23,7 @@ function initApp() {
 	controller = new ChallengeController($('.challenges-pane'))
 	abacus = new Abacus('abacus-canvas')
 	abacus.controller = controller
+	controller.abacus = abacus
 	controller.getChallenges()
 	initEventHandlers()
 	// Enable touch support
@@ -37,6 +39,10 @@ function initEventHandlers() {
 	$('#nav-tab a').on('click', function (e) {
 		e.preventDefault()
 	})
+	$('.wrapper').on('updateNumber',function(event) {
+		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('#abacus-output-mirror').text(abacus.getValue().toLocaleString(undefined))
+	})
 	$('#collapse-challenges').on('click', function () {
 		$('#challenges, #content').toggleClass('active');
 		// Change abacus size based on the challenges window
@@ -48,7 +54,7 @@ function initEventHandlers() {
 			abacus.reset()
 			changeAbacusWidth($('#abacus-content').width() - $('#challenges').width())
 			$('#abacus-output > p').attr('contenteditable','false')
-			$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+			$('.wrapper').trigger('updateNumber')
 		}
 		$('.collapse.in').toggleClass('in');
 		$('a[aria-expanded=true]').attr('aria-expanded', 'false');
@@ -57,10 +63,10 @@ function initEventHandlers() {
 	});
 
 	$('canvas#abacus-canvas').on('click',function(e) {
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('.wrapper').trigger('updateNumber')
 	})
 	$('canvas#abacus-canvas').on('touchmove',function(e) {
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('.wrapper').trigger('updateNumber')
 	})
 	$(window).on('resize',function(e) {
 	})
@@ -74,11 +80,11 @@ function initEventHandlers() {
 	})
 	$('#add-button').on('click',function(e) {
 		abacus.setValue(abacus.getValue()+1)
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('.wrapper').trigger('updateNumber')
 	})
 	$('#sub-button').on('click',function(e) {
 		abacus.setValue(abacus.getValue()-1)
-		$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+		$('.wrapper').trigger('updateNumber')
 	})
 	$('#prev-button').on('click',function() {
 		controller.setupQuestion(controller.currentChallengeIndex - 1)
@@ -97,7 +103,8 @@ function changeAbacusWidth(width) {
 	while ((abacus.columns.length * COLUMN_WIDTH) > ($('canvas#abacus-canvas').attr('width'))) {
 		abacus.removeColumn()
 	}
-	$('#abacus-output>p').text(abacus.getValue().toLocaleString(undefined))
+	$('.wrapper').trigger('updateNumber')
+
 }
 
 function cleanAbacusNumericInput(input) {
@@ -127,29 +134,50 @@ class ChallengeController {
 		})
 	}
 	getQuestionText(index) {
-		return Object.keys(this.challenges[index])[0]
+		return this.challenges[index]['text']
 	}
 	getQuestionAnswer(index) {
-		return this.challenges[index][Object.keys(this.challenges[index])[0]]
+		return this.challenges[index]['target']
+	}
+	getQuestionSolutionText(index) {
+		return this.challenges[index]['solution']
 	}
 	checkChallengeValue(value) {
-		console.log(value)
 		if (!Array.from($('#challenges')[0].classList).includes('active')) {
 			if (value == this.getQuestionAnswer(this.currentChallengeIndex)) {
 				this.challenges[this.currentChallengeIndex].completed = true
 				$('#abacus-content').addClass('correct')
 				this.nextButton.attr('disabled', false)
-				alert('Correct!')
+				var solutionText = this.getCongratulationsText() + ' ' + this.getQuestionSolutionText(this.currentChallengeIndex)
+				this.element.children('h2').eq(0).text(solutionText)
+				this.triggerConfetti()
 				// this.setupQuestion(this.currentChallengeIndex + 1)
 			}
 		}
 	}
-	incrementCurrentQuestion(index) {
-		this.currentChallengeIndex += 1
+	getCongratulationsText() {
+		var texts = [
+			'Nice job!',
+			'Good job!',
+			'Awesome!',
+			'Excellent work!',
+			'You got it!',
+			'That\'s it!',
+			'That\'s right!']
+		return texts[Math.round(Math.random() * 100) % texts.length]
 	}
+
 	setupQuestion(index) {
+		if (index >= this.challenges.length) {
+			index = 0
+		}
+		if (typeof this.confetti !== 'undefined') {
+			this.confetti.clear()
+		}
+		this.element.children('h2').eq(0).text('')
 		$('#abacus-content').removeClass('correct')
 		this.currentChallengeIndex = index
+		this.element.children('h3').eq(0).text('Current Challenge: ' + (this.currentChallengeIndex + 1))
 		if (this.currentChallengeIndex == 0) {
 			this.prevButton.attr('disabled', true)
 		} else {
@@ -161,6 +189,18 @@ class ChallengeController {
 			this.nextButton.attr('disabled', false)
 		}
 		this.elementText.text(this.getQuestionText(index))
+	}
+	triggerConfetti() {
+		var confettiSettings = {
+			target: document.getElementById('confetti-holder'),
+			respawn: false,
+			rotate: true,
+			clock: 25,
+			props: ['square'],
+			max: 100
+		};
+		this.confetti = new ConfettiGenerator(confettiSettings);
+		this.confetti.render()
 	}
 }
 
