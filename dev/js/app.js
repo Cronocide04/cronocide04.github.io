@@ -118,7 +118,7 @@ class ChallengeController {
 	}
 	getChallenges() {
 		var self = this
-		$.get('/challenges.json',function(data) {
+		$.get('challenges.json',function(data) {
 			self.challenges = data
 			for (var challenge in self.challenges) {
 				self.challenges[challenge].completed = false;
